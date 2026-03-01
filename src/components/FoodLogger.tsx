@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Plus, X, Utensils, Flame } from "lucide-react";
+import { Search, Plus, X, Utensils, Flame, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface FoodItem {
     id: string;
@@ -25,12 +26,50 @@ const MOCK_FOODS: FoodItem[] = [
 export default function FoodLogger({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     const [search, setSearch] = useState("");
     const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     if (!isOpen) return null;
 
     const filteredFoods = MOCK_FOODS.filter(food =>
         food.name.toLowerCase().includes(search.toLowerCase())
     );
+
+    const handleAddFood = async () => {
+        if (!selectedFood) return;
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (!user) throw new Error("User not authenticated");
+
+            const { error: insertError } = await supabase
+                .from('food_logs')
+                .insert([
+                    {
+                        user_id: user.id,
+                        food_name: selectedFood.name,
+                        calories: selectedFood.calories,
+                        protein: selectedFood.protein,
+                        carbs: selectedFood.carbs,
+                        fats: selectedFood.fats,
+                        serving_size: selectedFood.serving
+                    }
+                ]);
+
+            if (insertError) throw insertError;
+
+            onClose();
+            // Refresh logic would be handled by a parent component listener or state sync
+        } catch (err: any) {
+            console.error("Error saving food log:", err);
+            setError(err.message || "Failed to save meal");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -53,6 +92,12 @@ export default function FoodLogger({ isOpen, onClose }: { isOpen: boolean; onClo
                         </button>
                     </div>
 
+                    {error && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold">
+                            {error}
+                        </div>
+                    )}
+
                     <div className="relative group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/20 group-focus-within:text-primary transition-colors" />
                         <input
@@ -70,8 +115,8 @@ export default function FoodLogger({ isOpen, onClose }: { isOpen: boolean; onClo
                                 key={food.id}
                                 onClick={() => setSelectedFood(food)}
                                 className={`w-full p-4 rounded-2xl flex items-center justify-between transition-all border ${selectedFood?.id === food.id
-                                        ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5'
-                                        : 'bg-background/40 border-border/30 hover:border-primary/30 hover:bg-background/60'
+                                    ? 'bg-primary/10 border-primary shadow-lg shadow-primary/5'
+                                    : 'bg-background/40 border-border/30 hover:border-primary/30 hover:bg-background/60'
                                     }`}
                             >
                                 <div className="text-left">
@@ -96,14 +141,18 @@ export default function FoodLogger({ isOpen, onClose }: { isOpen: boolean; onClo
                                 <span className="text-primary">1 serving</span>
                             </div>
                             <button
-                                className="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-primary/20 transition-all active:scale-95"
-                                onClick={() => {
-                                    // In a real app, this would save to database
-                                    onClose();
-                                }}
+                                disabled={loading}
+                                className="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+                                onClick={handleAddFood}
                             >
-                                <Flame className="w-5 h-5" />
-                                Add {selectedFood.calories} Calories
+                                {loading ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Flame className="w-5 h-5" />
+                                        Add {selectedFood.calories} Calories
+                                    </>
+                                )}
                             </button>
                         </div>
                     )}

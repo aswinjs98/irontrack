@@ -1,7 +1,39 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { Dumbbell, Mail, Lock, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Dumbbell, Mail, Lock, ChevronRight, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function Login() {
+    const router = useRouter();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { error: authError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (authError) throw authError;
+
+            router.push("/dashboard");
+        } catch (err: any) {
+            setError(err.message || "Invalid email or password");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen gym-gradient flex items-center justify-center p-4">
             <div className="w-full max-w-md space-y-8 p-8 md:p-12 rounded-[2.5rem] bg-card border border-border/50 shadow-2xl relative overflow-hidden">
@@ -20,7 +52,13 @@ export default function Login() {
                     <p className="text-foreground/60">Log in to track your progress</p>
                 </div>
 
-                <form className="relative space-y-6 mt-8" action="/dashboard">
+                <form className="relative space-y-6 mt-8" onSubmit={handleLogin}>
+                    {error && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-bold">
+                            {error}
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-widest text-foreground/40 ml-1">Email</label>
@@ -28,7 +66,10 @@ export default function Login() {
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/20 group-focus-within:text-primary transition-colors" />
                                 <input
                                     type="email"
+                                    required
                                     placeholder="name@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-background border border-border/50 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-white placeholder:text-foreground/20"
                                 />
                             </div>
@@ -42,7 +83,10 @@ export default function Login() {
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground/20 group-focus-within:text-primary transition-colors" />
                                 <input
                                     type="password"
+                                    required
                                     placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
                                     className="w-full bg-background border border-border/50 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-white placeholder:text-foreground/20"
                                 />
                             </div>
@@ -51,10 +95,17 @@ export default function Login() {
 
                     <button
                         type="submit"
-                        className="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-bold flex items-center justify-center gap-2 group transition-all mt-8"
+                        disabled={loading}
+                        className="w-full py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-bold flex items-center justify-center gap-2 group transition-all mt-8 disabled:opacity-50"
                     >
-                        Sign In
-                        <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        {loading ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <>
+                                Sign In
+                                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                            </>
+                        )}
                     </button>
                 </form>
 
