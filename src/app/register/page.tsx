@@ -1,3 +1,4 @@
+// Triggering Vercel rebuild for latest auth and persistence changes
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
