@@ -29,6 +29,10 @@ function RegisterForm() {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!supabase) {
+            setError("Authentication is not configured.");
+            return;
+        }
         setLoading(true);
         setError(null);
 
